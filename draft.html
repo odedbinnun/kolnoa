@@ -26,7 +26,7 @@
 #introPlay.gone{opacity:0;pointer-events:none}
 #quotes{position:absolute;inset:0;pointer-events:none}
 .q{position:absolute;color:#efe4cf;opacity:0;white-space:pre-line;text-shadow:0 0 22px rgba(0,0,0,.95);direction:ltr;line-height:1.18;will-change:opacity,transform;transition:opacity var(--fin,2.6s) ease-in-out,transform 14s linear}
-.q.on{opacity:.93}
+.q.on{opacity:var(--op,.93)}
 .q.out{opacity:0;transition:opacity var(--fout,3.2s) ease-in-out,transform 14s linear}
 .q.classic{font-family:"Frank Ruhl Libre",Georgia,serif;font-style:italic}
 .q.modern{font-family:Assistant,Helvetica,sans-serif;font-weight:600;letter-spacing:.2px}
@@ -47,7 +47,7 @@
     ['I love the smell of napalm in the morning.','c'],
     ["I'm gonna make him an offer he can't refuse.",'c'],
     ["I'm sorry, Dave.\nI'm afraid I can't do that.",'m'],
-    ["Mama always said life was like a box of chocolates.\nYou never know what you're gonna get.",'c'],
+    ["Life is like a box of chocolates.\nYou never know what you're gonna get.",'c'],
   ];
   const $i=id=>document.getElementById(id);
   const intro=$i('intro'); intro.hidden=false; document.documentElement.style.overflow='hidden';
@@ -130,35 +130,44 @@
     $i('introPlay').classList.add('gone');
     startSound();
     const box=$i('quotes'), W=innerWidth, H=innerHeight, k=Math.max(.55,Math.min(1,W/1300));
-    // 6 zones (3 columns x 2 rows); a new quote avoids zones that are still showing something
-    const Z=[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], busy=new Set(); let lastZ=-1;
-    function pickZone(){ const free=Z.map((z,i)=>i).filter(i=>!busy.has(i)&&i!==lastZ); const pool=free.length?free:Z.map((z,i)=>i); return pool[(Math.random()*pool.length)|0]; }
-    let at=1400; const fin=2.6, fout=3.4;
+    const N=QUOTES.length, GOLD=2.39996, a0=Math.random()*6.283;
+    const shown=[]; // rects still on screen
+    const overlap=(a,b)=>Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));
+    const fin=2.2, fout=3.0;
+    let at=1300;
     QUOTES.forEach(([text,style],qi)=>{
       const len=text.replace(/\n/g,' ').length;
-      const fs=Math.round(Math.max(22,Math.min(76,330/Math.sqrt(len)))*k);   // short = big, long = small
-      const hold=1800+len*48;
+      const fs=Math.round(Math.max(22,Math.min(74,320/Math.sqrt(len)))*k);   // short = big, long = small
+      const hold=900+len*32;
       later(()=>{
-        const zi=pickZone(); busy.add(zi); lastZ=zi;
         const el=document.createElement('div');
         el.className='q '+({c:'classic',m:'modern',s:'classic'})[style];
-        el.style.fontSize=fs+'px'; el.style.maxWidth=Math.round(W*(len>60?.42:.5))+'px';
-        el.style.setProperty('--fin',fin+'s'); el.style.setProperty('--fout',fout+'s');
-        el.style.textAlign=['left','center','right'][Z[zi][0]];
+        el.style.fontSize=fs+'px'; el.style.maxWidth=Math.round(W*(len>60?.4:.46))+'px'; el.style.textAlign='center';
+        el.style.setProperty('--fin',fin+'s'); el.style.setProperty('--fout',fout+'s'); el.style.setProperty('--op',(0.42+0.53*Math.min(1,Math.max(0,(fs/k-22)/(74-22)))).toFixed(2));   // smaller = fainter, as if further away
         el.textContent=text; box.appendChild(el);
-        const r=el.getBoundingClientRect(), cw=W/3, ch=H/2, m=Math.max(18,W*.03);
-        let x=Z[zi][0]*cw+Math.random()*Math.max(0,cw-r.width)*.9, y=Z[zi][1]*ch+ch*.12+Math.random()*Math.max(0,ch*.76-r.height);
-        x=Math.max(m,Math.min(W-r.width-m,x)); y=Math.max(m,Math.min(H-r.height-m*2,y));
-        el.style.left=x+'px'; el.style.top=y+'px';
-        const dx=(Math.random()-.5)*30, dy=(Math.random()-.5)*16, s0=.985, s1=1.02;
-        el.style.transform=`translate(0,0) scale(${s0})`;
-        requestAnimationFrame(()=>requestAnimationFrame(()=>{ el.classList.add('on'); el.style.transform=`translate(${dx}px,${dy}px) scale(${s1})`; }));
-        setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>{ el.remove(); busy.delete(zi); },fout*1000+100); }, (fin*1000)+hold);
+        const b=el.getBoundingClientRect(), m=Math.max(16,W*.03);
+        // the first quote sits at the centre; each next one is placed a little further out (a widening spiral)
+        const t=qi===0?0:Math.sqrt(qi/(N-1));
+        let best=null;
+        for(let tr=0;tr<10;tr++){
+          const ang=a0+qi*GOLD+tr*0.63, rr=t*(1+tr*0.04);
+          let cxp=W/2+Math.cos(ang)*rr*W*0.33, cyp=H/2+Math.sin(ang)*rr*H*0.34;
+          let x=cxp-b.width/2, y=cyp-b.height/2;
+          x=Math.max(m,Math.min(W-b.width-m,x)); y=Math.max(m,Math.min(H-b.height-m*2,y));
+          const R={x,y,w:b.width,h:b.height}; const o=shown.reduce((s,q)=>s+overlap(R,q),0);
+          if(!best||o<best.o){best={R,o};} if(o===0) break;
+        }
+        const R=best.R; shown.push(R);
+        el.style.left=R.x+'px'; el.style.top=R.y+'px';
+        const dx=(Math.random()-.5)*22, dy=(Math.random()-.5)*12;
+        el.style.transform='scale(.985)';
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{ el.classList.add('on'); el.style.transform=`translate(${dx}px,${dy}px) scale(1.02)`; }));
+        setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>{ el.remove(); shown.splice(shown.indexOf(R),1); },fout*1000+100); }, fin*1000+hold);
       },at);
-      // next quote starts while this one is still on screen (overlap)
-      at+= fin*1000 + hold*0.55;
+      // next quote starts while earlier ones are still on screen
+      at+= 1500 + len*14;
     });
-    const end=at+fin*1000+1800;
+    const end=at+fin*1000+1200;
     later(()=>{ $i('finalLine').innerHTML='ויש עוד כל כך הרבה סרטים להכיר<br>ביחד ולפטפט עליהם.'; $i('finalLine').classList.add('on'); }, end);
     later(()=>{ $i('finalLine').classList.remove('on'); }, end+3600);
     later(()=>finish(false), end+5200);
