@@ -613,7 +613,7 @@ function match(f, skip){
 }
 function score(f){return f.m.filter(x=>S.m.has(x)).length*10 + f.w.filter(x=>S.w.has(x)).length}
 const SORTS={
-  match:(a,b)=>score(b)-score(a)||b.y-a.y,
+  match:(a,b)=>score(b)-score(a)||(b.lb||0)-(a.lb||0)||b.y-a.y,   // lb = Letterboxd average rating
   new:(a,b)=>b.y-a.y||a.t.localeCompare(b.t),
   old:(a,b)=>a.y-b.y||a.t.localeCompare(b.t),
   short:(a,b)=>a.d-b.d||a.t.localeCompare(b.t),
