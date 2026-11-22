@@ -1,0 +1,168 @@
+<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>טיוטת פתיח</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#050403;color:#efe4cf;font-family:Assistant,sans-serif}#again{display:none;position:fixed;inset:0;margin:auto;height:60px;width:220px;background:none;border:1px solid #e8b04a;color:#e8b04a;border-radius:30px;font:600 18px Assistant,sans-serif;cursor:pointer}</style></head><body>
+<button id="again" onclick="location.reload()">↻ לצפות שוב</button>
+<div id="intro" hidden>
+  <canvas id="grain" width="200" height="120"></canvas>
+  <div id="quotes"></div>
+  <button id="introPlay" aria-label="לפתוח את המתנה"><svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2"/><path d="M41 32 L70 50 L41 68 Z" fill="currentColor"/></svg></button>
+  <div id="finalLine"></div>
+  <button id="introSkip">דלג</button>
+</div>
+<style>
+#intro{position:fixed;inset:0;z-index:100;background:#050403;overflow:hidden;transition:opacity 2.4s ease}
+#intro[hidden]{display:none}
+#intro.lift{opacity:0;pointer-events:none}
+#grain{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#introPlay,#introSkip{z-index:3}
+#intro::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.75));pointer-events:none;animation:flick 3.2s infinite steps(1)}
+@keyframes flick{0%{opacity:1}7%{opacity:.86}9%{opacity:1}53%{opacity:.92}55%{opacity:1}}
+#introPlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:none;border:0;color:#e8d3a6;cursor:pointer;padding:20px;border-radius:50%;transition:opacity 1.2s,transform .3s}
+#introPlay svg{filter:drop-shadow(0 0 14px rgba(232,176,74,.55));animation:breathe 2.6s ease-in-out infinite}
+#introPlay::before{content:"";position:absolute;inset:14px;border-radius:50%;border:1px solid rgba(232,176,74,.5);animation:ring 2.6s ease-out infinite}
+#introPlay:hover{transform:translate(-50%,-50%) scale(1.06)}
+@keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes ring{0%{transform:scale(.9);opacity:.8}100%{transform:scale(1.6);opacity:0}}
+#introPlay.gone{opacity:0;pointer-events:none}
+#quotes{position:absolute;inset:0;pointer-events:none}
+.q{position:absolute;color:#efe4cf;opacity:0;white-space:pre-line;text-shadow:0 0 22px rgba(0,0,0,.95);direction:ltr;line-height:1.18;will-change:opacity,transform;transition:opacity var(--fin,2.6s) ease-in-out,transform 14s linear}
+.q.on{opacity:.93}
+.q.out{opacity:0;transition:opacity var(--fout,3.2s) ease-in-out,transform 14s linear}
+.q.classic{font-family:"Frank Ruhl Libre",Georgia,serif;font-style:italic}
+.q.modern{font-family:Assistant,Helvetica,sans-serif;font-weight:600;letter-spacing:.2px}
+#finalLine{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(780px,86vw);text-align:center;color:#f3ead9;font-family:"Frank Ruhl Libre",serif;font-weight:700;font-size:clamp(24px,3.4vw,40px);line-height:1.45;opacity:0;transition:opacity 2s ease}
+#finalLine.on{opacity:1}
+#finalLine small{display:block;margin-top:14px;font-size:.62em;color:#e8b04a;font-weight:500}
+#introSkip{position:absolute;bottom:18px;left:22px;background:none;border:0;color:rgba(243,234,217,.28);font:600 13px Assistant,sans-serif;cursor:pointer}
+#introSkip:hover{color:rgba(243,234,217,.7)}
+</style>
+<script>
+(function(){
+  
+  const QUOTES=[
+    ['Hello, Clarice.','m'],
+    ["When you have to shoot, shoot.\nDon't talk.",'c'],
+    ["There are no two words in the English language more harmful than \u2018good job\u2019.",'m'],
+    ['Carpe diem.','m'],
+    ['I love the smell of napalm in the morning.','c'],
+    ["I'm gonna make him an offer he can't refuse.",'c'],
+    ["I'm sorry, Dave.\nI'm afraid I can't do that.",'m'],
+    ["Mama always said life was like a box of chocolates.\nYou never know what you're gonna get.",'c'],
+  ];
+  const $i=id=>document.getElementById(id);
+  const intro=$i('intro'); intro.hidden=false; document.documentElement.style.overflow='hidden';
+  // film texture: grain, scratches, dust, flicker
+  const cv=$i('grain'), cx=cv.getContext('2d'); let grainT;
+  function sizeCv(){ cv.width=Math.round(innerWidth*0.6); cv.height=Math.round(innerHeight*0.6); }
+  sizeCv(); addEventListener('resize',sizeCv);
+  const tiles=[...Array(6)].map(()=>{const c=document.createElement('canvas');c.width=c.height=160;const g=c.getContext('2d');const im=g.createImageData(160,160);
+    for(let i=0;i<im.data.length;i+=4){const v=Math.random();const l=v>0.5?255:0;im.data[i]=im.data[i+1]=im.data[i+2]=l;im.data[i+3]=Math.pow(Math.abs(v-0.5)*2,3)*255;}g.putImageData(im,0,0);return c;});
+  let scr={x:Math.random(),v:0.0006,life:0};
+  function frame(){
+    const W=cv.width,H=cv.height; cx.clearRect(0,0,W,H);
+    // grain
+    const pat=cx.createPattern(tiles[(Math.random()*tiles.length)|0],'repeat');
+    cx.save(); cx.translate(-Math.random()*160,-Math.random()*160); cx.globalAlpha=0.16; cx.fillStyle=pat; cx.fillRect(0,0,W+160,H+160); cx.restore();
+    // a long scratch that wanders slowly and sometimes disappears
+    scr.x+=scr.v+(Math.random()-0.5)*0.0015; if(scr.x<0.05||scr.x>0.95) scr.v*=-1;
+    if(Math.random()<0.012) scr.life=40+Math.random()*90;
+    if(scr.life>0){ scr.life--; cx.globalAlpha=0.12+Math.random()*0.22; cx.strokeStyle='#fff'; cx.lineWidth=Math.random()<0.5?1:1.5;
+      const x=scr.x*W; cx.beginPath(); cx.moveTo(x,0); cx.lineTo(x+(Math.random()-0.5)*2,H); cx.stroke(); }
+    // short random scratches
+    const n=Math.random()<0.35?1+(Math.random()*2|0):0;
+    for(let k=0;k<n;k++){ const x=Math.random()*W, y=Math.random()*H*0.6, h=H*(0.2+Math.random()*0.8);
+      cx.globalAlpha=0.08+Math.random()*0.2; cx.strokeStyle=Math.random()<0.8?'#fff':'#000'; cx.lineWidth=Math.random()*1.2+0.4;
+      cx.beginPath(); cx.moveTo(x,y); cx.lineTo(x+(Math.random()-0.5)*6,y+h); cx.stroke(); }
+    // dust and hairs
+    if(Math.random()<0.45){ const m=1+(Math.random()*3|0);
+      for(let k=0;k<m;k++){ const x=Math.random()*W,y=Math.random()*H; cx.globalAlpha=0.35+Math.random()*0.45; cx.fillStyle=cx.strokeStyle=Math.random()<0.7?'#e9e2d0':'#000';
+        if(Math.random()<0.75){ cx.beginPath(); cx.arc(x,y,0.6+Math.random()*2.2,0,7); cx.fill(); }
+        else { cx.lineWidth=0.8; cx.beginPath(); cx.moveTo(x,y); cx.quadraticCurveTo(x+(Math.random()-0.5)*40,y+(Math.random()-0.5)*40,x+(Math.random()-0.5)*50,y+(Math.random()-0.5)*50); cx.stroke(); } } }
+    // exposure flicker
+    cx.globalAlpha=Math.random()*0.035; cx.fillStyle='#fff'; cx.fillRect(0,0,W,H); cx.globalAlpha=1;
+  }
+  grainT=setInterval(frame,1000/24); frame();
+  // projector sound (synthesised)
+  let ac, master;
+  function startSound(){
+    try{
+      ac=new (window.AudioContext||window.webkitAudioContext)();
+      master=ac.createGain(); master.gain.value=0; master.connect(ac.destination);
+      master.gain.linearRampToValueAtTime(0.5,ac.currentTime+1.5);
+      const len=ac.sampleRate*2, buf=ac.createBuffer(1,len,ac.sampleRate), d=buf.getChannelData(0);
+      for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+      // motor hum
+      const n=ac.createBufferSource(); n.buffer=buf; n.loop=true;
+      const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=380;
+      const hg=ac.createGain(); hg.gain.value=0.18; n.connect(lp).connect(hg).connect(master); n.start();
+      const hum=ac.createOscillator(); hum.type='sawtooth'; hum.frequency.value=48;
+      const hf=ac.createBiquadFilter(); hf.type='lowpass'; hf.frequency.value=160;
+      const hug=ac.createGain(); hug.gain.value=0.05; hum.connect(hf).connect(hug).connect(master); hum.start();
+      // shutter clicks ~ 18/s
+      const clickBuf=ac.createBuffer(1,ac.sampleRate*0.02,ac.sampleRate), cd=clickBuf.getChannelData(0);
+      for(let i=0;i<cd.length;i++) cd[i]=(Math.random()*2-1)*Math.pow(1-i/cd.length,6);
+      let t=ac.currentTime+0.05;
+      (function sched(){
+        while(t<ac.currentTime+0.4){
+          const s=ac.createBufferSource(); s.buffer=clickBuf;
+          const bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=2200+Math.random()*600; bp.Q.value=1.2;
+          const g=ac.createGain(); g.gain.value=0.22+Math.random()*0.08;
+          s.connect(bp).connect(g).connect(master); s.start(t);
+          t+=1/18+(Math.random()-0.5)*0.006;
+        }
+        if(ac.state!=='closed') setTimeout(sched,150);
+      })();
+    }catch(e){}
+  }
+  function stopSound(after){ if(!ac) return; try{ master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value,ac.currentTime); master.gain.linearRampToValueAtTime(0,ac.currentTime+after); setTimeout(()=>ac.close(),after*1000+200);}catch(e){} }
+  // placement: spread quotes over a 3x4 grid of zones, shuffled
+  function zones(){const z=[];for(let r=0;r<4;r++)for(let c=0;c<3;c++)z.push([c,r]);return z.sort(()=>Math.random()-0.5);}
+  let timers=[], done=false;
+  const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
+  function finish(fast){
+    if(done) return; done=true; timers.forEach(clearTimeout);
+    stopSound(fast?0.4:2.4);
+    intro.classList.add('lift');
+    setTimeout(()=>{intro.hidden=true;clearInterval(grainT);document.getElementById('again').style.display='block';},fast?600:2600);
+  }
+  $i('introSkip').onclick=()=>finish(true);
+  $i('introPlay').onclick=()=>{
+    $i('introPlay').classList.add('gone');
+    startSound();
+    const box=$i('quotes'), W=innerWidth, H=innerHeight, k=Math.max(.55,Math.min(1,W/1300));
+    // 6 zones (3 columns x 2 rows); a new quote avoids zones that are still showing something
+    const Z=[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], busy=new Set(); let lastZ=-1;
+    function pickZone(){ const free=Z.map((z,i)=>i).filter(i=>!busy.has(i)&&i!==lastZ); const pool=free.length?free:Z.map((z,i)=>i); return pool[(Math.random()*pool.length)|0]; }
+    let at=1400; const fin=2.6, fout=3.4;
+    QUOTES.forEach(([text,style],qi)=>{
+      const len=text.replace(/\n/g,' ').length;
+      const fs=Math.round(Math.max(22,Math.min(76,330/Math.sqrt(len)))*k);   // short = big, long = small
+      const hold=1800+len*48;
+      later(()=>{
+        const zi=pickZone(); busy.add(zi); lastZ=zi;
+        const el=document.createElement('div');
+        el.className='q '+({c:'classic',m:'modern',s:'classic'})[style];
+        el.style.fontSize=fs+'px'; el.style.maxWidth=Math.round(W*(len>60?.42:.5))+'px';
+        el.style.setProperty('--fin',fin+'s'); el.style.setProperty('--fout',fout+'s');
+        el.style.textAlign=['left','center','right'][Z[zi][0]];
+        el.textContent=text; box.appendChild(el);
+        const r=el.getBoundingClientRect(), cw=W/3, ch=H/2, m=Math.max(18,W*.03);
+        let x=Z[zi][0]*cw+Math.random()*Math.max(0,cw-r.width)*.9, y=Z[zi][1]*ch+ch*.12+Math.random()*Math.max(0,ch*.76-r.height);
+        x=Math.max(m,Math.min(W-r.width-m,x)); y=Math.max(m,Math.min(H-r.height-m*2,y));
+        el.style.left=x+'px'; el.style.top=y+'px';
+        const dx=(Math.random()-.5)*30, dy=(Math.random()-.5)*16, s0=.985, s1=1.02;
+        el.style.transform=`translate(0,0) scale(${s0})`;
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{ el.classList.add('on'); el.style.transform=`translate(${dx}px,${dy}px) scale(${s1})`; }));
+        setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>{ el.remove(); busy.delete(zi); },fout*1000+100); }, (fin*1000)+hold);
+      },at);
+      // next quote starts while this one is still on screen (overlap)
+      at+= fin*1000 + hold*0.55;
+    });
+    const end=at+fin*1000+1800;
+    later(()=>{ $i('finalLine').innerHTML='ויש עוד כל כך הרבה סרטים להכיר<br>ביחד ולפטפט עליהם.'; $i('finalLine').classList.add('on'); }, end);
+    later(()=>{ $i('finalLine').classList.remove('on'); }, end+3600);
+    later(()=>finish(false), end+5200);
+  };
+})();
+</script>
+</body></html>
