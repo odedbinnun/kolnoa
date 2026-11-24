@@ -296,7 +296,7 @@ body.editing .editbar{display:flex}
   <div id="quotes"></div>
   <button id="introPlay" aria-label="לפתוח את המתנה"><svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2"/><path d="M41 32 L70 50 L41 68 Z" fill="currentColor"/></svg></button>
   <div id="finalLine"></div>
-  <button id="introSkip">דלג</button>
+  <button id="introSkip">Skip intro</button>
 </div>
 <style>
 #intro{position:fixed;inset:0;z-index:100;background:#050403;overflow:hidden;transition:opacity 2.4s ease}
@@ -322,8 +322,8 @@ body.editing .editbar{display:flex}
 #finalLine{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(780px,86vw);text-align:center;color:#f3ead9;font-family:"Frank Ruhl Libre",serif;font-weight:700;font-size:clamp(24px,3.4vw,40px);line-height:1.45;opacity:0;transition:opacity 2s ease}
 #finalLine.on{opacity:1}
 #finalLine small{display:block;margin-top:14px;font-size:.62em;color:#e8b04a;font-weight:500}
-#introSkip{position:absolute;bottom:18px;left:22px;background:none;border:0;color:rgba(243,234,217,.28);font:600 13px Assistant,sans-serif;cursor:pointer}
-#introSkip:hover{color:rgba(243,234,217,.7)}
+#introSkip{position:absolute;bottom:22px;right:24px;background:rgba(0,0,0,.25);border:1px solid rgba(200,196,188,.32);border-radius:4px;padding:6px 14px;color:rgba(200,196,188,.6);font:500 13px/1 Assistant,Helvetica,sans-serif;letter-spacing:.6px;direction:ltr;cursor:pointer;transition:color .3s,border-color .3s}
+#introSkip:hover{color:rgba(230,226,218,.9);border-color:rgba(230,226,218,.6)}
 </style>
 <script>
 (function(){
