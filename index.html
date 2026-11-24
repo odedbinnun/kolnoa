@@ -930,7 +930,6 @@ function readExtrasEditor(){
   return {items,err};
 }
 async function saveExtras(f,items){
-  if(!db) return;
   try{ await api('extras',{id:f.id,items}); EXTRAS_DB[f.id]={items}; return true; }
   catch(e){ return false; }
 }
